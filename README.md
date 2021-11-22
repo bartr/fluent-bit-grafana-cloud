@@ -1,11 +1,13 @@
-# Fluent Bit - Azure Log Analytics
+# Fluent Bit - Grafana Cloud
 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 
-This is an end-to-end walkthrough of setting up Fluent Bit for log forwarding from a Kubernetes cluster to [Grafana Cloud (Loki)](https://grafana.com/)
+This is an end-to-end walkthrough of setting up Fluent Bit for log forwarding from a Kubernetes cluster (k3d) to [Grafana Cloud (Loki)](https://grafana.com/)
 
 The sample application generates JSON logs. Normal logs are written to stdout. Error logs are written to stderr.
+
+This sample will work with other Kubernetes clusters but may require minor changes. This sample assumes a single node cluster for simplicity.
 
 ```json
 
@@ -17,28 +19,14 @@ The sample application generates JSON logs. Normal logs are written to stdout. E
 
 ## Prerequisites
 
-- Knowledge of `Kubernetes` and `kubectl`
+- Basic knowledge of `Kubernetes` and `kubectl`
 - Bash shell (tested on GitHub Codespaces, Mac, Ubuntu, WSL2)
 - `GitHub Codespaces` or `k3d cluster` with `kubectl` access
 - An account on `Grafana Cloud` (a [free account](https://grafana.com/get/?plcmt=graf-nav-menu&cta=create-free-account) will work)
 
 ## Fork this repo
 
-- Fork this repo and open with `Codespaces` or clone the repo to your development machine
-
-## Create k3d Cluster (if required)
-
-```bash
-
-# create the cluster and wait for ready
-# default cluster name is k3d
-
-k3d cluster create --registry-use k3d-registry.localhost:5500 --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3s-server-arg "--no-deploy=servicelb"
-
-# wait for cluster to be ready
-kubectl wait node --for condition=ready --all --timeout=60s
-
-```
+- Fork this repo
 
 ## Create Grafana Cloud Account
 
@@ -61,6 +49,7 @@ kubectl wait node --for condition=ready --all --timeout=60s
 - Paste the Grafana Cloud PAT you just created in the value
 - Click on `Select repositories`
   - Select any repos you want to load this secret
+  - Make sure to select your fork of this repo
 - Click `Add Secret`
 
 ## Create a Codespace
@@ -71,7 +60,19 @@ kubectl wait node --for condition=ready --all --timeout=60s
   - Select cores
   - Click `Create Codespace`
 
+> GitHub Codespaces is still in preview for individual users
+>
+> If you do not have access, you can use your dev workstation
+
 ## Set Environment Variables
+
+- If you are not using Codespaces
+
+  ```bash
+
+  export GC_PAT=yourGrafanaCloudPAT
+
+  ```
 
 - Export your Grafana Cloud user name
 
@@ -114,9 +115,11 @@ kubectl wait node --for condition=ready --all --timeout=60s
 
 - Save values for future use (optional)
 
-> Note this does not save GC_PAT for security reasons
-
   ```bash
+
+  # uncomment this line if not using Codespaces
+  ### Warning: this will store your PAT in clear text
+  # echo "export GC_PAT=$GC_PAT" >> ~/.zshrc
 
   echo "export GC_LOKI_USER=$GC_LOKI_USER" >> ~/.zshrc
   echo "export GC_USER=$GC_USER" >> ~/.zshrc
@@ -124,6 +127,15 @@ kubectl wait node --for condition=ready --all --timeout=60s
   cat ~/.zshrc
 
   ```
+
+## Create k3d Cluster (if required)
+
+```bash
+
+# make sure to start in the root of this repo
+k3d cluster create --config k3d.yaml
+
+```
 
 ## Create Kubernetes Secrets
 
@@ -137,6 +149,7 @@ kubectl create namespace log-test
 kubectl delete secret fluent-bit-secrets -n log-test
 
 # add Log Analytics secret
+### Note: verify the URL on your Grafana Cloud / Loki config page
 kubectl create secret generic fluent-bit-secrets -n log-test \
   --from-literal=LokiUrl=https://$GC_LOKI_USER:$GC_PAT@logs-prod-us-central1.grafana.net/loki/api/v1/push
 
@@ -149,8 +162,11 @@ kubectl get secret fluent-bit-secrets -n log-test -o jsonpath='{.data}'
 
 ```bash
 
+# change to the fluentbit directory
+cd fluentbit
+
 # apply the fluentbit config
-kubectl apply -f config.yaml
+kubectl apply -f fluentbit.yaml
 
 # check fluent-bit pod until running
 kubectl get pods -n log-test
@@ -161,27 +177,11 @@ kubectl logs -n log-test fluent-bit
 # run log app - this will generate 5 log entries
 kubectl apply -f logapp.yaml
 
-# check logapp pod
-# logapp will run and then exit with Completed state
-kubectl get pods
-
-# check logs
+# check logs for 5 lines of output
 kubectl logs logapp
-
-# generate more logs
-kubectl delete -f logapp.yaml
-kubectl apply -f logapp.yaml
-
-# check Grafana Cloud for your data
-# this should only take a few seconds
 
 # delete logapp
 kubectl delete -f logapp.yaml
-
-# check pod
-kubectl get pods -n log-test
-
-# Result - fluent-bit pod is still running
 
 ```
 
@@ -202,14 +202,31 @@ kubectl get pods -n log-test
   - `{ job="log-app" } | statusCode=500`
   - `{ job="log-app" } | duration > 20`
 
+## Deploy LogApp in a loop
+
+```bash
+
+kubectl apply -f run-in-loop.yaml
+
+kubectl logs logapp-loop
+
+```
+
+### Validate logs
+
+- Click `Run Query` and watch the logs get added every 2-3 seconds
+
 ### Cleaning up
 
 ```bash
 
+# delete log app
+kubectl delete -f run-in-loop.yaml
+
+# delete the log-test namespace
 kubectl delete namespace log-test
 
 # verify everything is deleted
-#    Error from server (NotFound)
 kubectl get ns log-test
 
 ```
