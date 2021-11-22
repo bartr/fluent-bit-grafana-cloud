@@ -133,7 +133,7 @@ This sample will work with other Kubernetes clusters but may require minor chang
 ```bash
 
 # make sure to start in the root of this repo
-k3d cluster create --config k3d.yaml
+k3d cluster create --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3s-server-arg "--no-deploy=servicelb"
 
 ```
 
@@ -143,10 +143,6 @@ k3d cluster create --config k3d.yaml
 
 # create namespace if needed
 kubectl create namespace log-test
-
-# delete secrets (if exist)
-#    you can safely ignore a not found error
-kubectl delete secret fluent-bit-secrets -n log-test
 
 # add Log Analytics secret
 ### Note: verify the URL on your Grafana Cloud / Loki config page
@@ -227,7 +223,7 @@ kubectl delete -f run-in-loop.yaml
 kubectl delete namespace log-test
 
 # verify everything is deleted
-kubectl get ns log-test
+kubectl get ns
 
 ```
 
