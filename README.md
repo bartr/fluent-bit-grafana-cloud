@@ -217,7 +217,7 @@ kubectl logs logapp-loop
 
 - Use grafana/fluent-bit image
 - Use LokiUrl secret
-  - Beginning at line 156
+- Beginning at line 156
 
   ```yaml
 
@@ -234,13 +234,13 @@ kubectl logs logapp-loop
 
   ```
 
-- Configure grafan-loki as output
+- Configure grafana-loki as output
   - Url is the environment variable from the secret
   - Only match logapp*.* logs
   - Add the `job` label
   - `Lift` fields from JSON log body to top level fields to make querying easier / faster
   - Remove the lifted fields from the JSON log
-    - Beginning at line 59
+- Beginning at line 59
 
   ```yaml
 
