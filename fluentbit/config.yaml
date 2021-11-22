@@ -1,4 +1,41 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluent-bit
+  namespace: log-test
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluent-bit-read
+rules:
+- apiGroups: [ "" ]
+  resources:
+  - namespaces
+  - pods
+  verbs:
+  - get
+  - watch
+  - list
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluent-bit-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluent-bit-read
+subjects:
+- kind: ServiceAccount
+  name: fluent-bit
+  namespace: log-test
+
+---
+
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fluent-bit-config
@@ -22,11 +59,11 @@ data:
   output.conf: |
     [OUTPUT]
         Name              grafana-loki
+        Url               ${LOKI_URL}
         Match             kube.var.log.containers.logapp*.*
-        Url               https://$GC_LOKI_USER:$GC_PAT@logs-prod-us-central1.grafana.net/loki/api/v1/push
-        Labels            { job="log-app" }
-        LabelKeys         Date,StatusCode,Duration,Path
-        RemoveKeys        Date,StatusCode,Duration,Path
+        Labels            {job="log-app"}
+        LabelKeys         date,statusCode,duration,message,stream
+        RemoveKeys        date,statusCode,duration,message,stream
 
   input-kubernetes.conf: |
     [INPUT]
@@ -97,3 +134,61 @@ data:
         Time_Key time
         Time_Format %Y-%m-%dT%H:%M:%S.%L
         Time_Keep Off
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fluent-bit
+  namespace: log-test
+  labels:
+    app: fluent-bit
+spec:
+    priorityClassName: system-node-critical
+    serviceAccountName: fluent-bit
+    terminationGracePeriodSeconds: 10
+
+    securityContext:
+      seccompProfile:
+        type: RuntimeDefault
+
+    containers:
+    - name: fluent-bit
+      image: grafana/fluent-bit-plugin-loki:latest
+      imagePullPolicy: Always
+      env:
+        - name: LOKI_URL
+          valueFrom:
+            secretKeyRef:
+              name: fluent-bit-secrets
+              key: LokiUrl
+      ports:
+        - containerPort: 2020
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+      volumeMounts:
+      - name: varlog
+        mountPath: /var/log
+
+      - name: varlibdockercontainers
+        mountPath: /var/lib/docker/containers
+        readOnly: true
+
+      - name: fluent-bit-config
+        mountPath: /fluent-bit/etc/
+
+    volumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+
+    - name: fluent-bit-config
+      configMap:
+        name: fluent-bit-config
