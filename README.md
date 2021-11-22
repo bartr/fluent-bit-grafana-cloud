@@ -46,6 +46,106 @@ kubectl apply -f account.yaml
 
 ```
 
+## Create Grafana Cloud Account
+
+- Go to <https://grafana.com> and create a free account
+- Click on `My Account`
+  - You will get redirected to this URL <https://grafana.com/orgs/yourAccountNameHere>
+- In the left nav bar, click on `API Keys` (under Security)
+- Click on `+ Add API Key`
+  - Name your API Key (i.e. yourName-publisher)
+  - Select `MetricsPublisher` as the role
+  - Click on `Create API Key`
+  - Click on `Copy to Clipboard` and save wherever you save your PATs
+    - WARNING - you will not be able to get back to this value!!!
+
+## Add your PAT to Codespaces
+
+- Open this link in a new browser tab <https://github.com/settings/codespaces>
+- Click `New Secret`
+- Enter `GC_PAT` as the name
+- Paste the Grafana Cloud PAT you just created in the value
+- Click on `Select repositories`
+  - Select any repos you want to load this secret
+- Click `Add Secret`
+
+
+## Create a Codespace
+
+- Navigate to your fork of this repo
+- Click `Code`
+  - Click `New Codespace`
+  - Select cores
+  - Click `Create Codespace`
+
+## Create k3d Cluster
+
+```bash
+
+# create k3d cluster
+make create
+
+# change to the grafana-cloud directory
+cd fluentbit
+
+```
+
+## Set Environment Variables
+
+- Export Prometheus values
+
+  - Export your Grafana Cloud user name
+
+    ```bash
+
+    export GC_USER=yourUserName
+
+    ```
+
+- Export Loki Tenant ID
+  - From the `Grafana Cloud Portal`
+    - <https://grafana.com/orgs/yourUser>
+  - Click `Details` in the `Loki` section
+    - Copy your `User` value
+    - Export the value
+
+    ```bash
+
+    export GC_LOKI_USER=pasteValue
+
+    ```
+
+- Verify GC_* env vars are set
+
+  ```bash
+
+  env | grep GC_
+
+  ```
+
+  - Ouput should look like this
+
+  ```text
+
+  GC_PAT=xxxxxxxxxxxxxx==
+  GC_LOKI_USER=######
+  GC_USER=bartr
+
+  ```
+
+- Save values for future use (optional)
+
+> Note this does not save GC_PAT for security reasons
+
+  ```bash
+
+  echo "export GC_LOKI_USER=$GC_LOKI_USER" > ~/.zshrc
+  echo "export GC_USER=$GC_USER" >> ~/.zshrc
+
+  cat ~/.zshrc
+
+  ```
+
 ## Create Kubernetes Secrets
 
 ```bash
@@ -141,14 +241,40 @@ kubectl get daemonset -n log-test
 
 ```
 
+## Deploy Fluent Bit
+
+  ```bash
+
+    # replace the credentials
+    envsubst < fluentbit.yaml | kubectl apply -f -
+
+    # check pod
+    kubectl get pods -n monitoring
+
+    # check logs
+    kubectl logs -n monitoring fluentbit
+
+  ```
+
+## Validate Logs
+
+- Open your Grafana Cloud dashboard
+  - Make sure to replace yourUser
+    - <https://yourUser.grafana.net>
+- Select the `Explore` tab from the left navigation menu
+- Select Logs data from the `Explore` drop down at top left of panel
+- Enter `{ job = "ngsa" }` in the `Loki Query`
+- Click `Run Query` or press `ctl + enter`
+- Other queries
+  - `{ job = "ngsa", app = "webv" }`
+  - Filter based on a value in the json log payload
+    - `{ job = "ngsa", app = "webv", Category = "Rating100" } | json | ContentLength > 100000`
+
 ### Cleaning up
 
 ```bash
 
-kubectl delete secret fluentbit-secrets -n log-test
-kubectl delete -f fluentbit-daemonset.yaml
-kubectl delete -f config.yaml
-kubectl delete -f account.yaml
+kubectl delete namespace log-test
 
 # verify everything is deleted
 #    Error from server (NotFound)
