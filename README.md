@@ -132,7 +132,9 @@ This sample will work with other Kubernetes clusters but may require minor chang
 
 ```bash
 
-# make sure to start in the root of this repo
+# change to the deploy directory
+cd deploy
+
 k3d cluster create --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3s-server-arg "--no-deploy=servicelb"
 
 ```
@@ -157,9 +159,6 @@ kubectl get secret fluent-bit-secrets -n log-test -o jsonpath='{.data}'
 ## Deploy to Kubernetes
 
 ```bash
-
-# change to the fluentbit directory
-cd fluentbit
 
 # apply the fluentbit config
 kubectl apply -f fluentbit.yaml
