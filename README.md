@@ -146,7 +146,7 @@ k3d cluster create --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3
 # create namespace if needed
 kubectl create namespace log-test
 
-# add Log Analytics secret
+# add Loki secret
 ### Note: verify the URL on your Grafana Cloud / Loki config page
 kubectl create secret generic fluent-bit-secrets -n log-test \
   --from-literal=LokiUrl=https://$GC_LOKI_USER:$GC_PAT@logs-prod-us-central1.grafana.net/loki/api/v1/push
