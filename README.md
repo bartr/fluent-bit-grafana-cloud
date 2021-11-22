@@ -3,7 +3,6 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 
-
 This is an end-to-end walkthrough of setting up Fluent Bit for log forwarding from a Kubernetes cluster to [Grafana Cloud (Loki)](https://grafana.com/)
 
 The sample application generates JSON logs. Normal logs are written to stdout. Error logs are written to stderr.
@@ -18,31 +17,26 @@ The sample application generates JSON logs. Normal logs are written to stdout. E
 
 ## Prerequisites
 
-- Knowledge of `Azure`, `Kubernetes`, `Fluent Bit` and `kubectl`
+- Knowledge of `Kubernetes` and `kubectl`
 - Bash shell (tested on GitHub Codespaces, Mac, Ubuntu, WSL2)
-- Kubernetes cluster
-- kubectl with access to the Kubernetes cluster
+- `GitHub Codespaces` or `k3d cluster` with `kubectl` access
 - An account on `Grafana Cloud` (a [free account](https://grafana.com/get/?plcmt=graf-nav-menu&cta=create-free-account) will work)
 
-## Clone this repo
+## Fork this repo
+
+- Fork this repo and open with `Codespaces` or clone the repo to your development machine
+
+## Create k3d Cluster (if required)
 
 ```bash
 
-git clone https://github.com/bartr/fluent-bit-grafana-cloud
-cd fluent-bit-grafana-cloud/fluentbit
+# create the cluster and wait for ready
+# default cluster name is k3d
 
-```
+k3d cluster create --registry-use k3d-registry.localhost:5500 --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3s-server-arg "--no-deploy=servicelb"
 
-## Create Kubernetes Dependencies
-
-> For safety, we use the `log-test` namespace
->
-> Most deployments use the `logging` namespace by convention
-
-```bash
-
-# create namespace, service account, cluster role, cluster role binding
-kubectl apply -f account.yaml
+# wait for cluster to be ready
+kubectl wait node --for condition=ready --all --timeout=60s
 
 ```
 
@@ -69,7 +63,6 @@ kubectl apply -f account.yaml
   - Select any repos you want to load this secret
 - Click `Add Secret`
 
-
 ## Create a Codespace
 
 - Navigate to your fork of this repo
@@ -78,29 +71,15 @@ kubectl apply -f account.yaml
   - Select cores
   - Click `Create Codespace`
 
-## Create k3d Cluster
-
-```bash
-
-# create k3d cluster
-make create
-
-# change to the grafana-cloud directory
-cd fluentbit
-
-```
-
 ## Set Environment Variables
 
-- Export Prometheus values
+- Export your Grafana Cloud user name
 
-  - Export your Grafana Cloud user name
+  ```bash
 
-    ```bash
+  export GC_USER=yourUserName
 
-    export GC_USER=yourUserName
-
-    ```
+  ```
 
 - Export Loki Tenant ID
   - From the `Grafana Cloud Portal`
@@ -139,7 +118,7 @@ cd fluentbit
 
   ```bash
 
-  echo "export GC_LOKI_USER=$GC_LOKI_USER" > ~/.zshrc
+  echo "export GC_LOKI_USER=$GC_LOKI_USER" >> ~/.zshrc
   echo "export GC_USER=$GC_USER" >> ~/.zshrc
 
   cat ~/.zshrc
@@ -150,60 +129,34 @@ cd fluentbit
 
 ```bash
 
+# create namespace if needed
+kubectl create namespace log-test
+
 # delete secrets (if exist)
 #    you can safely ignore a not found error
-kubectl delete secret fluentbit-secrets -n log-test
+kubectl delete secret fluent-bit-secrets -n log-test
 
-# add Log Analytics secrets
-kubectl create secret generic fluentbit-secrets -n log-test \
-  --from-literal=WorkspaceId=$(az monitor log-analytics workspace show -g $LogAppRG -n $LogAppName --query customerId -o tsv) \
-  --from-literal=SharedKey=$(az monitor log-analytics workspace get-shared-keys -g $LogAppRG -n $LogAppName --query primarySharedKey -o tsv)
+# add Log Analytics secret
+kubectl create secret generic fluent-bit-secrets -n log-test \
+  --from-literal=LokiUrl=https://$GC_LOKI_USER:$GC_PAT@logs-prod-us-central1.grafana.net/loki/api/v1/push
 
 # verify the secrets are set properly (base 64 encoded)
-kubectl get secret fluentbit-secrets -n log-test -o jsonpath='{.data}'
+kubectl get secret fluent-bit-secrets -n log-test -o jsonpath='{.data}'
 
 ```
 
 ## Deploy to Kubernetes
-
-### Update Config (if required)
-
-> The config works with `containerd` or `cri-o` runtimes
->
-> config.yaml must be changed to work with `dockerd` or `dockershim`
->
-> More details [here](https://github.com/microsoft/fluentbit-containerd-cri-o-json-log)
-
-Check the Kubernetes runtime
-
-```bash
-
-kubectl describe node | grep "Container Runtime Version:"
-
-```
-
-If the result shows `dockerd` or `dockershim` edit config.yaml
-
-- Replace
-  - config.yaml
-    - input-kubernetes.conf
-      - `Parser  cri`
-- with
-  - `Parser docker`
 
 ```bash
 
 # apply the fluentbit config
 kubectl apply -f config.yaml
 
-# start fluentbit daemonset
-kubectl apply -f fluentbit-daemonset.yaml
-
-# check daemonset until fluent-bit is running
-kubectl get daemonset -n log-test
+# check fluent-bit pod until running
+kubectl get pods -n log-test
 
 # check fluent-bit logs
-kubectl logs -l k8s-app=fluent-bit-logging -n log-test
+kubectl logs -n log-test fluent-bit
 
 # run log app - this will generate 5 log entries
 kubectl apply -f logapp.yaml
@@ -215,15 +168,6 @@ kubectl get pods
 # check logs
 kubectl logs logapp
 
-# check fluent-bit logs
-kubectl logs -l k8s-app=fluent-bit-logging -n log-test
-
-# looking for a line like:
-#   [2021/02/02 21:54:19] [ info] [output:azure:azure.0]
-
-# check Log Analytics for your data on the Azure portal
-# this can take 10-15 minutes initially
-
 # generate more logs
 kubectl delete -f logapp.yaml
 kubectl apply -f logapp.yaml
@@ -234,27 +178,12 @@ kubectl apply -f logapp.yaml
 # delete logapp
 kubectl delete -f logapp.yaml
 
-# check daemonset
-kubectl get daemonset -n log-test
+# check pod
+kubectl get pods -n log-test
 
-# Result - fluent-bit daemonset is still running
+# Result - fluent-bit pod is still running
 
 ```
-
-## Deploy Fluent Bit
-
-  ```bash
-
-    # replace the credentials
-    envsubst < fluentbit.yaml | kubectl apply -f -
-
-    # check pod
-    kubectl get pods -n monitoring
-
-    # check logs
-    kubectl logs -n monitoring fluentbit
-
-  ```
 
 ## Validate Logs
 
@@ -263,12 +192,15 @@ kubectl get daemonset -n log-test
     - <https://yourUser.grafana.net>
 - Select the `Explore` tab from the left navigation menu
 - Select Logs data from the `Explore` drop down at top left of panel
-- Enter `{ job = "ngsa" }` in the `Loki Query`
+- Enter `{ job = "log-app" }` in the `Loki Query`
 - Click `Run Query` or press `ctl + enter`
 - Other queries
-  - `{ job = "ngsa", app = "webv" }`
-  - Filter based on a value in the json log payload
-    - `{ job = "ngsa", app = "webv", Category = "Rating100" } | json | ContentLength > 100000`
+  - `{ job="log-app", stream="stdout" }`
+  - `{ job="log-app", stream="stderr" }`
+  - `{ job="log-app" } | statusCode=200`
+  - `{ job="log-app" } | statusCode=400`
+  - `{ job="log-app" } | statusCode=500`
+  - `{ job="log-app" } | duration > 20`
 
 ### Cleaning up
 
