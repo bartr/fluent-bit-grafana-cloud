@@ -3,11 +3,12 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 
-This is an end-to-end walkthrough of setting up Fluent Bit for log forwarding from a Kubernetes cluster (k3d) to [Grafana Cloud (Loki)](https://grafana.com/)
-
-The sample application generates JSON logs. Normal logs are written to stdout. Error logs are written to stderr.
-
-This sample will work with other Kubernetes clusters but may require minor changes. This sample assumes a single node cluster for simplicity.
+- This is an end-to-end walkthrough of setting up Fluent Bit for log forwarding from a Kubernetes cluster (k3d) to [Grafana Cloud (Loki)](https://grafana.com/)
+  - This sample will work with other Kubernetes clusters but may require minor changes
+  - This sample assumes a single node cluster for simplicity
+- The sample application generates JSON logs
+  - Normal logs are written to stdout
+  - Error logs are written to stderr
 
 ```json
 
@@ -20,7 +21,7 @@ This sample will work with other Kubernetes clusters but may require minor chang
 ## Prerequisites
 
 - Basic knowledge of `Kubernetes` and `kubectl`
-- Bash shell (tested on GitHub Codespaces, Mac, Ubuntu, WSL2)
+- Bash shell (tested on GitHub Codespaces, Mac, and Ubuntu)
 - `GitHub Codespaces` or `k3d cluster` with `kubectl` access
 - An account on `Grafana Cloud` (a [free account](https://grafana.com/get/?plcmt=graf-nav-menu&cta=create-free-account) will work)
 
@@ -143,7 +144,7 @@ k3d cluster create --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3
 
 ```bash
 
-# create namespace if needed
+# create namespace
 kubectl create namespace log-test
 
 # add Loki secret
