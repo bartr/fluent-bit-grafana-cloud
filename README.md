@@ -211,7 +211,51 @@ kubectl logs logapp-loop
 
 - Click `Run Query` and watch the logs get added every 2-3 seconds
 
-### Cleaning up
+## Changes to Fluent Bit
+
+- All changes to forward logs to Grafana Cloud (Loki) are in `deploy/fluentbit.yaml`
+
+- Use grafana/fluent-bit image
+- Use LokiUrl secret
+  - Beginning at line 156
+
+  ```yaml
+
+    containers:
+    - name: fluent-bit
+      imagePullPolicy: Always
+      image: grafana/fluent-bit-plugin-loki:latest
+      env:
+        - name: LOKI_URL
+          valueFrom:
+            secretKeyRef:
+              name: fluent-bit-secrets
+              key: LokiUrl
+
+  ```
+
+- Configure grafan-loki as output
+  - Url is the environment variable from the secret
+  - Only match logapp*.* logs
+  - Add the `job` label
+  - `Lift` fields from JSON log body to top level fields to make querying easier / faster
+  - Remove the lifted fields from the JSON log
+    - Beginning at line 59
+
+  ```yaml
+
+  output.conf: |
+    [OUTPUT]
+        Name              grafana-loki
+        Url               ${LOKI_URL}
+        Match             kube.var.log.containers.logapp*.*
+        Labels            { job="log-app" }
+        LabelKeys         date,statusCode,duration,message,stream
+        RemoveKeys        date,statusCode,duration,message,stream
+
+  ```
+
+## Cleaning up
 
 ```bash
 
