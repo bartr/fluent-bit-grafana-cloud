@@ -26,7 +26,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
       - name: fluent-bit
-        image: fluent/fluent-bit:1.6
+        image: grafana/fluent-bit-plugin-loki:latest
         imagePullPolicy: Always
 
         ports:
