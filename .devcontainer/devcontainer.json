@@ -19,16 +19,6 @@
 		"cpus": 4
 	},
 	
-	// forward ports for the app
-	"forwardPorts": [
-		30080
-	],
-
-	// add labels
-	"portsAttributes": {
-		"30080": { "label": "log-app" }
-	},
-
 	// Install extensions
 	"extensions": [
 		"ms-azuretools.vscode-docker",
