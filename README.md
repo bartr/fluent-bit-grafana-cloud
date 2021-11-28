@@ -42,6 +42,12 @@
   - Click on `Copy to Clipboard` and save wherever you save your PATs
     - WARNING - you will not be able to get back to this value!!!
 
+> GitHub Codespaces is still in preview for individual users
+>
+> If you do not have access, you can use your dev workstation
+>
+> If you do not have access to GitHub Codespaces, skip the next two steps
+
 ## Add your PAT to Codespaces
 
 - Open this link in a new browser tab <https://github.com/settings/codespaces>
@@ -59,26 +65,28 @@
 - Click `Code`
   - Click `New Codespace`
   - Select cores
+    - Not all versions of Codespaces prompts for the number of cores
   - Click `Create Codespace`
 
-> GitHub Codespaces is still in preview for individual users
->
-> If you do not have access, you can use your dev workstation
+## Non-Codespaces
+
+- If you are not using GitHub Codespaces
+  - `git clone` your fork of the repo
+  - `cd fluent-bit-grafana-cloud`
 
 ## Set Environment Variables
 
-- If you are not using Codespaces
-
   ```bash
 
+  # only necessary if you are not using Codespaces
+  # Codespaces will set from the secret above
   export GC_PAT=yourGrafanaCloudPAT
 
   ```
 
-- Export your Grafana Cloud user name
-
   ```bash
 
+  # export your Grafana Cloud user name
   export GC_USER=yourUserName
 
   ```
