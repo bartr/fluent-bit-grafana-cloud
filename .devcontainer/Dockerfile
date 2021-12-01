@@ -5,3 +5,5 @@ FROM ghcr.io/cse-labs/k3d:latest
 
 # some images require specific values
 ARG USERNAME=vscode
+
+RUN wget -q -O - https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash

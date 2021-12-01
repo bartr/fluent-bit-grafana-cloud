@@ -144,7 +144,7 @@
 # change to the deploy directory
 cd deploy
 
-k3d cluster create --config k3d.yaml --k3s-server-arg "--no-deploy=traefik" --k3s-server-arg "--no-deploy=servicelb"
+k3d cluster create --config k3d.yaml
 
 ```
 
